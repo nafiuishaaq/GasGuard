@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use colored::Colorize;
 use gasguard_cli::{collect_scannable_files, ProgressReporter};
 use gasguard_engine::{ContractScanner, ScanAnalyzer, TieredScanner, UserUsage, UsageTier};
 use std::path::PathBuf;
@@ -297,6 +298,31 @@ async fn main() -> Result<()> {
                         println!("\n⚠️  {}", warning);
                     }
                 }
+            }
+        }
+        Commands::Analyze { path } => {
+            println!("🔬 Analyzing storage optimization potential: {:?}", path);
+
+            let results = if path.is_dir() {
+                scanner.scan_directory(&path)?
+            } else {
+                vec![scanner.scan_file(&path)?]
+            };
+
+            let all_violations: Vec<_> = results.iter()
+                .flat_map(|r| r.violations.iter())
+                .collect();
+
+            if all_violations.is_empty() {
+                println!("✅ No optimization opportunities found.");
+            } else {
+                let savings = ScanAnalyzer::calculate_storage_savings(
+                    &results.iter().flat_map(|r| r.violations.clone()).collect::<Vec<_>>(),
+                );
+                println!("{}", savings);
+                println!("\n{}", ScanAnalyzer::generate_summary(
+                    &results.iter().flat_map(|r| r.violations.clone()).collect::<Vec<_>>(),
+                ));
             }
         }
         Commands::Tiers { tier, comparison } => {

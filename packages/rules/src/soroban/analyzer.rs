@@ -473,7 +473,7 @@ impl GoodContract {
         // Well-optimized contract should have minimal violations
         // Most should be informational rather than critical
         let critical_violations: Vec<_> = violations.iter()
-            .filter(|v| matches!(v.severity, ViolationSeverity::High | ViolationSeverity::Error))
+            .filter(|v| matches!(v.severity, ViolationSeverity::High | ViolationSeverity::Critical))
             .collect();
         
         assert!(critical_violations.is_empty() || critical_violations.len() <= 1);

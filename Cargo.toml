@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "packages/cli",
     "packages/rules",
+    "libs/analysis-core",
     "libs/engine", 
     "libs/ast",
     "libs/parsers/rust",

@@ -5,9 +5,10 @@ use super::io::{AnalysisInput, AnalysisOutput, SessionOutput};
 /// Central store for all registered [`BaseRule`] implementations.
 ///
 /// Usage:
-/// ```rust
+/// ```rust,ignore
+/// use analysis_core::plugin::{PluginRegistry, RuleConfig};
 /// let mut registry = PluginRegistry::new();
-/// registry.register(Box::new(MyRule::default()))?;
+/// registry.register(Box::new(MyRule::default()), &RuleConfig::default()).unwrap();
 /// let session = registry.run_session(&inputs);
 /// ```
 pub struct PluginRegistry {

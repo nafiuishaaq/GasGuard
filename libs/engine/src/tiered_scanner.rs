@@ -2,7 +2,7 @@ use crate::scanner::{ScanResult, ContractScanner};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum UsageTier {
     Starter,
     Developer,

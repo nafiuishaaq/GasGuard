@@ -1,16 +1,11 @@
 use anyhow::{Context, Result};
-use gasguard_ast::{UnifiedAST, Language as AstLanguage};
-use gasguard_rule_engine::{RuleEngine, RuleViolation};
-use gasguard_parser_rust::RustParser;
-use gasguard_parser_solidity::SolidityParser;
-use gasguard_parser_vyper::VyperParser;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use crate::{ScanResult, ContractScanner, Language};
+use crate::ScanResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileHashInfo {
@@ -54,15 +49,12 @@ pub struct IncrementalAnalysisResult {
 }
 
 pub struct IncrementalScanner {
-    rule_engine: RuleEngine,
     cache_dir: PathBuf,
 }
 
 impl IncrementalScanner {
     pub fn new<P: AsRef<Path>>(cache_dir: P) -> Self {
-        let rule_engine = RuleEngine::new();
         Self {
-            rule_engine,
             cache_dir: cache_dir.as_ref().to_path_buf(),
         }
     }
@@ -70,7 +62,6 @@ impl IncrementalScanner {
     /// Generate content-based hash for a file
     pub async fn generate_file_hash(&self, file_path: &Path) -> Result<FileHashInfo> {
         use std::fs;
-        use std::time::SystemTime;
         
         let content = fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read file: {:?}", file_path))?;

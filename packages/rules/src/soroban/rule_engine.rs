@@ -731,7 +731,15 @@ impl SorobanRule for GovernanceVotingRule {
                     let source = &function.raw_definition;
                     
                     // Check for authorization: require_auth() or authorize()
-                    if !source.contains("require_auth") && !source.contains("authorize") {
+                    // Strip comment lines before checking to avoid false negatives
+                    let non_comment_source: String = source.lines()
+                        .filter(|l| {
+                            let t = l.trim();
+                            !t.starts_with("//") && !t.starts_with("/*") && !t.starts_with("*")
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    if !non_comment_source.contains("require_auth") && !non_comment_source.contains("authorize") {
                         violations.push(RuleViolation {
                             rule_name: self.id().to_string(),
                             description: format!("Governance function '{}' lacks explicit authorization check", function.name),
@@ -894,8 +902,16 @@ impl SorobanRule for ClaimExpirationRule {
                 
                 if func_name.contains("claim") || func_name.contains("settle") || func_name.contains("redeem") {
                     let source = &function.raw_definition;
-                    
-                    if !source.contains("timestamp") && !source.contains("expiration") && !source.contains("expiry") {
+                    // Strip comment lines to avoid false negatives from comments mentioning keywords
+                    let non_comment_source: String = source.lines()
+                        .filter(|l| {
+                            let t = l.trim();
+                            !t.starts_with("//") && !t.starts_with("/*") && !t.starts_with("*")
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+
+                    if !non_comment_source.contains("timestamp") && !non_comment_source.contains("expiration") && !non_comment_source.contains("expiry") {
                         violations.push(RuleViolation {
                             rule_name: self.id().to_string(),
                             description: format!("Claim function '{}' may be missing expiration logic", function.name),
@@ -910,6 +926,7 @@ impl SorobanRule for ClaimExpirationRule {
             }
         }
         
+        eprintln!("DEBUG apply returning {} violations", violations.len());
         violations
     }
 }
@@ -1147,6 +1164,16 @@ impl MyContract {
         let rule = ClaimExpirationRule::default();
         let contract = SorobanParser::parse_contract(source, "test.rs").unwrap();
         let violations = rule.apply(&contract);
+
+        // Debug: print what was parsed
+        eprintln!("Parsed implementations: {}", contract.implementations.len());
+        for imp in &contract.implementations {
+            eprintln!("  impl {}: {} functions", imp.target, imp.functions.len());
+            for f in &imp.functions {
+                eprintln!("    fn {} (line {})", f.name, f.line_number);
+            }
+        }
+        eprintln!("Violations: {:?}", violations.iter().map(|v| &v.variable_name).collect::<Vec<_>>());
         
         // Should find one violation for claim_reward
         assert!(violations.iter().any(|v| v.variable_name == "claim_reward"));

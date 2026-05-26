@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use gasguard_ast::{UnifiedAST, Language as AstLanguage};
 use gasguard_rule_engine::{RuleEngine, RuleViolation};
 use gasguard_parser_rust::RustParser;
 use gasguard_parser_solidity::SolidityParser;
@@ -59,11 +58,11 @@ impl ContractScanner {
         language: Language,
     ) -> Result<ScanResult> {
         let ast = match language {
-            AstLanguage::Rust | AstLanguage::Soroban => RustParser::parse(content, &source)
+            Language::Rust | Language::Soroban => RustParser::parse(content, &source)
                 .map_err(|e| anyhow::anyhow!("Rust parse error: {}", e))?,
-            AstLanguage::Solidity => SolidityParser::parse(content, &source)
+            Language::Solidity => SolidityParser::parse(content, &source)
                 .map_err(|e| anyhow::anyhow!("Solidity parse error: {}", e))?,
-            AstLanguage::Vyper => VyperParser::parse(content, &source)
+            Language::Vyper => VyperParser::parse(content, &source)
                 .map_err(|e| anyhow::anyhow!("Vyper parse error: {}", e))?,
         };
 
@@ -106,7 +105,7 @@ impl Default for ContractScanner {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ScanResult {
     pub source: String,
     pub violations: Vec<RuleViolation>,
@@ -116,5 +115,22 @@ pub struct ScanResult {
 impl ScanResult {
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
+    }
+}
+
+impl ContractScanner {
+    /// Convenience alias used by TieredScanner — scans content, auto-detecting language from source path extension.
+    pub fn scan_content(&self, content: &str, source: String) -> Result<ScanResult> {
+        let extension = std::path::Path::new(&source)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+        let language = match extension {
+            "rs" => Language::Rust,
+            "sol" => Language::Solidity,
+            "vy" => Language::Vyper,
+            _ => Language::Rust, // default fallback
+        };
+        self.scan_content_with_language(content, source, language)
     }
 }

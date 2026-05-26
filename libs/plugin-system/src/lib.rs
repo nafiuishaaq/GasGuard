@@ -15,7 +15,7 @@ impl PluginLoader {
     /// that returns a pointer to a Box<dyn Rule>.
     /// In a production system, you'd want to use a stable ABI or WASM.
     pub unsafe fn load_rule<P: AsRef<Path>>(&self, path: P) -> Result<Box<dyn Rule>, String> {
-        let lib = Library::new(path).map_err(|e| e.to_string())?;
+        let lib = Library::new(path.as_ref().as_os_str()).map_err(|e| e.to_string())?;
         
         // We leak the library to keep it loaded, as the Rule might use code from it
         let lib = Box::leak(Box::new(lib));
