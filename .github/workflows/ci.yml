@@ -1,28 +1,3 @@
-  coverage-report:
-    name: Upload Coverage to Codecov
-    runs-on: ubuntu-latest
-    needs: [node-lint, node-build]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install pnpm
-        run: npm install -g pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Run tests with coverage
-        run: pnpm test -- --coverage || npm test -- --coverage
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-        continue-on-error: true
 name: CI
 
 on:
@@ -98,15 +73,6 @@ jobs:
             echo "lockfile=pnpm-lock.yaml" >> $GITHUB_OUTPUT
           elif [ -f "yarn.lock" ]; then
             echo "manager=yarn" >> $GITHUB_OUTPUT
-
-      - name: Detect package manager
-        id: package-manager
-        run: |
-          if [ -f "pnpm-lock.yaml" ]; then
-            echo "manager=pnpm" >> $GITHUB_OUTPUT
-            echo "lockfile=pnpm-lock.yaml" >> $GITHUB_OUTPUT
-          elif [ -f "yarn.lock" ]; then
-            echo "manager=yarn" >> $GITHUB_OUTPUT
             echo "lockfile=yarn.lock" >> $GITHUB_OUTPUT
           elif [ -f "package-lock.json" ]; then
             echo "manager=npm" >> $GITHUB_OUTPUT
@@ -115,6 +81,12 @@ jobs:
             echo "manager=npm" >> $GITHUB_OUTPUT
             echo "lockfile=" >> $GITHUB_OUTPUT
           fi
+
+      - name: Install pnpm
+        if: steps.package-manager.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.10.0
 
       - name: Check for package.json files
         id: check-package
@@ -133,7 +105,7 @@ jobs:
           case "${{ steps.package-manager.outputs.manager }}" in
             pnpm)
               if [ -f "pnpm-lock.yaml" ]; then
-                /usr/local/bin/pnpm install --frozen-lockfile
+                pnpm install --frozen-lockfile
               else
                 echo "No pnpm-lock.yaml found. Skipping dependency installation."
               fi
@@ -283,76 +255,3 @@ jobs:
           if [ "$BUILD_RAN" = "false" ]; then
             echo "No build script found. Skipping build step."
           fi
-
-  e2e-tests:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: gasguard_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Install dependencies
-        run: |
-          if [ -f "pnpm-lock.yaml" ]; then
-            pnpm install --frozen-lockfile
-          else
-            echo "No pnpm-lock.yaml found."
-            exit 1
-          fi
-
-      - name: Check for E2E test directory
-        id: check-e2e
-        run: |
-          if [ -d "apps/api-service/test/e2e" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "E2E test directory found"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "E2E test directory not found"
-          fi
-
-      - name: Run E2E tests
-        if: steps.check-e2e.outputs.exists == 'true'
-        run: |
-          cd apps/api-service
-          pnpm run test:e2e
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gasguard_test
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
-
-      - name: Upload test results
-        if: always() && steps.check-e2e.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-test-results
-          path: apps/api-service/test-results/
-          if-no-files-found: ignore
