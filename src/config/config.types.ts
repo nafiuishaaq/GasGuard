@@ -107,7 +107,7 @@ export interface ConfigurationChange {
 }
 
 export interface ConfigurationExport {
-  format: 'json' | 'yaml' | 'toml';
+  format: 'json' | 'yaml' | 'toml' | 'sarif';
   includeSystem: boolean;
   includeRules: boolean;
   includeProfiles: boolean;

@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 import { generateJsonReport } from '../../reporting/json-reporter';
+import { generateSarifReport } from '../../reporting/sarif-reporter';
 import { printSummary } from '../../reporting/summary-printer';
 import { ScanWatcher } from '../../../../src/analysis/watch/watcher';
 
@@ -11,7 +12,7 @@ export const scanCommand = new Command('scan')
   .description('Scan smart contracts for gas optimization opportunities')
   .argument('[path]', 'Path to scan (default: current directory)', '.')
   .option('-o, --output <file>', 'Output file for JSON report')
-  .option('-f, --format <format>', 'Output format (json, text, both)', 'both')
+  .option('-f, --format <format>', 'Output format (json, sarif, text, both)', 'both')
   .option('--no-summary', 'Disable printable summary')
   .option('--fix-preview', 'Show fix previews for violations')
   .option('-w, --watch', 'Watch for file changes and re-run scans automatically')
@@ -39,6 +40,12 @@ export const scanCommand = new Command('scan')
           const outputPath = options.output || path.join(process.cwd(), 'gasguard-report.json');
           await generateJsonReport(scanResults, outputPath);
           console.log(chalk.green(`✓ JSON report saved to ${outputPath}`));
+        }
+
+        if (options.format === 'sarif') {
+          const outputPath = options.output || path.join(process.cwd(), 'gasguard-report.sarif.json');
+          await generateSarifReport(scanResults, outputPath);
+          console.log(chalk.green(`✓ SARIF report saved to ${outputPath}`));
         }
 
         if (options.summary !== false && (options.format === 'text' || options.format === 'both')) {
